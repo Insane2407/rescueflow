@@ -1,0 +1,199 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * FlowRescue design system — cinematic dark AI control-room aesthetic.
+ * All colors in oklch. Never hardcode colors in components.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-violet: var(--violet);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 1.25rem;
+  --background: #17153B;
+  --foreground: #C8ACD6;
+  --card: #2E236C;
+  --card-foreground: #C8ACD6;
+  --popover: #2E236C;
+  --popover-foreground: #C8ACD6;
+  --primary: #433D8B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #2E236C;
+  --secondary-foreground: #C8ACD6;
+  --muted: color-mix(in srgb, #2E236C 50%, #17153B);
+  --muted-foreground: color-mix(in srgb, #C8ACD6 70%, #17153B);
+  --accent: #433D8B;
+  --accent-foreground: #C8ACD6;
+  --destructive: oklch(0.63 0.22 26);
+  --destructive-foreground: oklch(0.98 0.004 250);
+  --violet: #C8ACD6;
+  --success: oklch(0.72 0.16 158);
+  --warning: oklch(0.78 0.15 78);
+  --surface: #2E236C;
+  --surface-2: #433D8B;
+  --border: color-mix(in srgb, #C8ACD6 15%, transparent);
+  --input: color-mix(in srgb, #C8ACD6 20%, transparent);
+  --ring: color-mix(in srgb, #C8ACD6 55%, transparent);
+
+  --gradient-accent: linear-gradient(100deg, var(--primary), var(--violet));
+  --gradient-veil: radial-gradient(
+    60% 55% at 50% 0%,
+    color-mix(in srgb, var(--primary) 30%, transparent),
+    transparent 70%
+  );
+  --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
+    0 18px 60px -18px color-mix(in srgb, var(--primary) 45%, transparent);
+  --shadow-panel: 0 24px 80px -32px rgba(0, 0, 0, 0.85);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+}
+
+@utility glass {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+@utility clay {
+  background: var(--surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: 
+    0 10px 20px -5px rgba(0, 0, 0, 0.4),
+    inset 0 4px 6px -2px rgba(200, 172, 214, 0.2),
+    inset 0 -4px 6px -2px rgba(23, 21, 59, 0.8);
+  border: 1px solid color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+@utility grid-veil {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(70% 60% at 50% 40%, black, transparent 100%);
+}
+
+@utility text-gradient {
+  background: var(--gradient-accent);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 7s ease-in-out infinite;
+}
+
+@utility glow-ring {
+  box-shadow: var(--shadow-glow);
+}
+
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pulse-fail {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 14px color-mix(in oklab, var(--destructive) 0%, transparent);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+@utility animate-pulse-fail {
+  animation: pulse-fail 1.6s ease-out infinite;
+}
+
+@utility animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
