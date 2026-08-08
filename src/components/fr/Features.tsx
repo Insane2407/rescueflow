@@ -26,9 +26,9 @@ export function Features() {
             transition={{ duration: 0.6, delay: (i % 3) * 0.08 }}
             whileHover={{ y: -6, rotateX: 3, rotateY: -3 }}
             style={{ transformPerspective: 900 }}
-            className="clay group rounded-[2rem] p-6 transition-colors duration-500 hover:border-primary/30"
+            className="glass group rounded-[2rem] p-6 transition-colors duration-500 hover:border-primary/50"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl glass text-primary transition-all group-hover:glow-ring">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl clay text-primary transition-all group-hover:glow-ring">
               <f.icon size={20} strokeWidth={1.6} />
             </div>
             <h3 className="mt-6 text-base font-semibold">{f.t}</h3>

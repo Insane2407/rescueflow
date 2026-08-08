@@ -60,7 +60,7 @@ export function FinalCTA() {
         <p className="mt-5 text-lg text-muted-foreground">Build workflows that can recover.</p>
         <button
           onClick={() => scrollTo("demo")}
-          className="mt-10 rounded-full px-8 py-3.5 text-sm font-medium text-foreground glow-ring transition-transform hover:-translate-y-0.5"
+          className="clay mt-10 rounded-full px-8 py-3.5 text-sm font-medium text-foreground glow-ring transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] hover:brightness-110"
           style={{ background: "var(--gradient-accent)" }}
         >
           🚑 Launch FlowRescue Demo

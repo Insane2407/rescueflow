@@ -1,16 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { SectionHeading } from "./primitives";
-
-const STEPS = [
-  "Detecting failure...",
-  "Analyzing cause...",
-  "Generating recovery plan...",
-  "Requesting information...",
-  "Validating...",
-  "Retrying failed step...",
-  "Resuming workflow...",
-];
+import { fetchIncidents, fetchWorkflow, Workflow, WorkflowStep, executeRescue } from "@/lib/api";
 
 type Stage = { name: string; state: "ok" | "fail" | "wait" };
 
@@ -24,36 +15,68 @@ const INITIAL: Stage[] = [
 
 export function RescueRoom() {
   const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(0);
+  const [liveSteps, setLiveSteps] = useState<string[]>([]);
   const [rescued, setRescued] = useState(false);
 
+  const [incident, setIncident] = useState<WorkflowStep | null>(null);
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+
   useEffect(() => {
-    if (!running) return;
-    if (done >= STEPS.length) {
-      const t = setTimeout(() => {
+    async function load() {
+      try {
+        const incs = await fetchIncidents();
+        if (incs.length > 0) {
+          const latestInc = incs[incs.length - 1]!;
+          setIncident(latestInc);
+          const wf = await fetchWorkflow(latestInc.workflow_id);
+          setWorkflow(wf);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const baseStages: Stage[] = workflow
+    ? workflow.steps.map(s => ({
+        name: s.step_name.charAt(0) + s.step_name.slice(1).toLowerCase(),
+        state: s.status === "COMPLETED" ? "ok" : s.status === "FAILED" ? "fail" : "wait"
+      }))
+    : INITIAL;
+
+  const hasRetried = liveSteps.some(s => s.includes("Retrying") || s.includes("Resuming"));
+  const stages: Stage[] = rescued
+    ? baseStages.map((s) => ({ ...s, state: "ok" }))
+    : hasRetried
+      ? baseStages.map((s) => (s.state === "fail" ? { ...s, state: "ok" } : s))
+      : baseStages;
+
+  function runRescue() {
+    if (!workflow) return;
+    setRunning(true);
+    setRescued(false);
+    setLiveSteps([]);
+    
+    executeRescue(workflow.id, 
+      (msg) => {
+        setLiveSteps(prev => [...prev, msg]);
+      }, 
+      () => {
         setRescued(true);
         setRunning(false);
-      }, 400);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setDone((d) => d + 1), 520);
-    return () => clearTimeout(t);
-  }, [running, done]);
-
-  const stages: Stage[] = rescued
-    ? INITIAL.map((s) => ({ ...s, state: "ok" }))
-    : done >= 6
-      ? INITIAL.map((s, i) => (i === 3 ? { ...s, state: "ok" } : s))
-      : INITIAL;
-
-  function reset() {
-    setRescued(false);
-    setDone(0);
-    setRunning(true);
+      },
+      (err) => {
+        console.error(err);
+        setRunning(false);
+      }
+    );
   }
 
   return (
-    <section id="demo" className="relative px-6 py-28">
+    <section id="demo" className="relative px-4 sm:px-6 py-28">
       <div
         className="pointer-events-none absolute inset-x-0 top-1/4 h-[420px]"
         style={{ background: "var(--gradient-veil)", opacity: 0.5 }}
@@ -81,7 +104,7 @@ export function RescueRoom() {
                 flowrescue · rescue room
               </span>
             </div>
-            <span className="font-mono text-[11px] text-muted-foreground">Order #1024</span>
+            <span className="font-mono text-[11px] text-muted-foreground">Order #{workflow?.id.slice(0, 8) || "1024"}</span>
           </div>
 
           <div className="grid gap-0 lg:grid-cols-[1fr_1.15fr]">
@@ -91,13 +114,17 @@ export function RescueRoom() {
               </p>
               <div className="mt-5 space-y-2.5">
                 {stages.map((s) => (
-                  <div
+                  <motion.div
+                    layout
                     key={s.name}
-                    className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors duration-500 ${
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className={`clay flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-500 hover:-translate-y-1 hover:shadow-lg ${
                       s.state === "fail"
-                        ? "animate-pulse-fail border-destructive/50 bg-destructive/10"
+                        ? "animate-pulse-fail border-destructive/60 bg-destructive/10 shadow-[0_0_20px_rgba(231,76,60,0.15)]"
                         : s.state === "ok"
-                          ? "border-success/25 bg-success/[0.06]"
+                          ? "border-success/40 bg-success/[0.06] shadow-[0_0_15px_rgba(46,204,113,0.1)]"
                           : "border-border bg-surface-2/40"
                     }`}
                   >
@@ -113,7 +140,7 @@ export function RescueRoom() {
                     >
                       {s.state === "fail" ? "🔴 failed" : s.state === "ok" ? "✓ complete" : "⏸ waiting"}
                     </span>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -122,59 +149,68 @@ export function RescueRoom() {
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
                 AI diagnosis
               </p>
-              <p className="mt-3 text-[15px] leading-relaxed">
-                Invoice generation failed because customer GST information is missing.
-              </p>
+              {incident ? (
+                <p className="mt-3 text-[15px] leading-relaxed">
+                  {incident.error_context?.message || "Invoice generation failed because customer GST information is missing."}
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <div className="h-4 w-full animate-pulse rounded bg-surface-2/40" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-surface-2/40" />
+                </div>
+              )}
               <div className="mt-4 flex items-center gap-3">
                 <div className="h-1 w-40 overflow-hidden rounded-full bg-surface-2">
                   <motion.div
                     initial={{ width: 0 }}
-                    whileInView={{ width: "94%" }}
+                    whileInView={{ width: `${workflow?.active_diagnosis?.confidence || 0}%` }}
                     viewport={{ once: true }}
                     transition={{ duration: 1.2, delay: 0.2 }}
                     className="h-full"
                     style={{ background: "var(--gradient-accent)" }}
                   />
                 </div>
-                <span className="font-mono text-[11px] text-muted-foreground">confidence 94%</span>
+                <span className="font-mono text-[11px] text-muted-foreground">confidence {workflow?.active_diagnosis?.confidence || 0}%</span>
               </div>
 
               <p className="mt-7 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                 Recommended recovery
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {["Request", "Validate", "Retry", "Resume"].map((s) => (
+                {(workflow?.active_diagnosis?.recommended_actions || []).map((s) => (
                   <span
                     key={s}
                     className="rounded-md border border-border bg-surface-2/60 px-2.5 py-1 font-mono text-[11px] tracking-[0.14em]"
                   >
-                    {s}
+                    {s.replace(/_/g, ' ').toUpperCase()}
                   </span>
                 ))}
               </div>
 
               <button
-                onClick={reset}
+                onClick={runRescue}
                 disabled={running}
-                className="mt-7 w-full rounded-full px-6 py-3 text-sm font-medium text-foreground glow-ring transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+                className="clay mt-7 w-full rounded-full px-6 py-3 text-sm font-medium text-foreground glow-ring transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 disabled:hover:-translate-y-0 disabled:hover:shadow-none disabled:hover:brightness-100 disabled:active:scale-100"
                 style={{ background: "var(--gradient-accent)" }}
               >
                 {running ? "Rescuing…" : rescued ? "🚑 Run rescue again" : "🚑 Rescue workflow"}
               </button>
 
-              <div className="mt-6 min-h-[190px] rounded-xl border border-border bg-background/60 p-4 font-mono text-[12px]">
-                {done === 0 && !rescued ? (
+              <div className="mt-6 min-h-[190px] rounded-xl glass border border-primary/40 p-4 font-mono text-[12px] shadow-[0_0_20px_rgba(67,61,139,0.15)]">
+                {liveSteps.length === 0 && !rescued ? (
                   <span className="text-muted-foreground">
                     awaiting operator command…
                   </span>
                 ) : null}
                 <AnimatePresence>
-                  {STEPS.slice(0, done).map((s) => (
+                  {liveSteps.map((s, idx) => (
                     <motion.div
-                      key={s}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center justify-between py-0.5"
+                      layout
+                      key={idx + s}
+                      initial={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      className="flex items-center justify-between py-1"
                     >
                       <span className="text-muted-foreground">{s}</span>
                       <span className="text-success">✓</span>

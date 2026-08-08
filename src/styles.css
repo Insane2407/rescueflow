@@ -46,7 +46,7 @@
 
 :root {
   --radius: 1.25rem;
-  --background: #17153B;
+  --background: #0D0F12;
   --foreground: #C8ACD6;
   --card: #2E236C;
   --card-foreground: #C8ACD6;
@@ -107,21 +107,24 @@
 }
 
 @utility glass {
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01));
+  backdrop-filter: blur(24px) saturate(200%) contrast(1.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-xl);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
 }
 
 @utility clay {
   background: var(--surface);
   border-radius: var(--radius-2xl);
   box-shadow: 
-    0 10px 20px -5px rgba(0, 0, 0, 0.4),
-    inset 0 4px 6px -2px rgba(200, 172, 214, 0.2),
-    inset 0 -4px 6px -2px rgba(23, 21, 59, 0.8);
-  border: 1px solid color-mix(in srgb, var(--foreground) 5%, transparent);
+    0 10px 20px -5px rgba(0, 0, 0, 0.5),
+    inset 0 4px 8px -2px rgba(255, 255, 255, 0.15),
+    inset 0 -4px 8px -2px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 @utility grid-veil {

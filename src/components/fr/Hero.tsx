@@ -1,5 +1,6 @@
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
+import { Workflow, fetchWorkflows, fetchWorkflow, createWorkflow } from "@/lib/api";
 
 const STAGES = ["ORDER", "PAYMENT", "INVENTORY", "INVOICE", "SHIPPING"] as const;
 const FAIL_INDEX = 3;
@@ -9,11 +10,50 @@ const TIMINGS = [3200, 2200, 2600, 3000, 3200];
 
 export function Hero() {
   const [phase, setPhase] = useState(0);
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setPhase((p) => (p + 1) % 5), TIMINGS[phase]);
-    return () => clearTimeout(t);
-  }, [phase]);
+    let active = true;
+    let interval: ReturnType<typeof setInterval>;
+    
+    async function poll() {
+      try {
+        let wfId = workflow?.id;
+        if (!wfId) {
+          const wfs = await fetchWorkflows();
+          if (wfs.length > 0) {
+            wfId = wfs[wfs.length - 1]!.id;
+          } else {
+            const newWf = await createWorkflow();
+            wfId = newWf.id;
+          }
+        }
+        if (wfId && active) {
+          const fresh = await fetchWorkflow(wfId);
+          setWorkflow(fresh);
+          
+          if (fresh.status === "FAILED") {
+            // Give it a moment, then optionally animate through 1 -> 2 -> 3
+            // For now, let's just stick to phase 1 to show the failure
+            setPhase((p) => (p === 0 ? 1 : p));
+          } else if (fresh.status === "COMPLETED") {
+            setPhase(4);
+          } else {
+            setPhase(0);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    poll();
+    interval = setInterval(poll, 1500);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [workflow?.id]);
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -21,10 +61,14 @@ export function Hero() {
   const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-10, 10]), { stiffness: 80, damping: 18 });
 
   function statusOf(i: number) {
-    if (i !== FAIL_INDEX) return i < FAIL_INDEX ? "ok" : phase >= 4 || phase === 0 ? "ok" : "wait";
-    if (phase === 0) return "ok";
-    if (phase >= 4) return "ok";
-    return "fail";
+    if (!workflow) return "wait";
+    const stepName = STAGES[i];
+    const step = workflow.steps.find((s) => s.step_name === stepName);
+    if (!step) return "wait";
+    if (step.status === "COMPLETED") return "ok";
+    if (step.status === "FAILED") return "fail";
+    if (step.status === "RUNNING") return "ok"; // Show as running/ok visually
+    return "wait";
   }
 
   return (
@@ -35,7 +79,7 @@ export function Hero() {
         mx.set((e.clientX - r.left) / r.width - 0.5);
         my.set((e.clientY - r.top) / r.height - 0.5);
       }}
-      className="relative overflow-hidden px-6 pb-24 pt-36 sm:pt-44"
+      className="relative overflow-hidden px-4 sm:px-6 pb-24 pt-36 sm:pt-44"
     >
       <div
         className="pointer-events-none absolute inset-0"
@@ -86,7 +130,7 @@ export function Hero() {
               onClick={() =>
                 document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" })
               }
-              className="group relative overflow-hidden rounded-full px-6 py-3 text-sm font-medium text-foreground glow-ring transition-transform hover:-translate-y-0.5"
+              className="clay group relative overflow-hidden rounded-full px-6 py-3 text-sm font-medium text-foreground glow-ring transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] hover:brightness-110 active:scale-[0.98]"
               style={{ background: "var(--gradient-accent)" }}
             >
               🚑 Watch FlowRescue in Action
@@ -95,7 +139,7 @@ export function Hero() {
               onClick={() =>
                 document.getElementById("technology")?.scrollIntoView({ behavior: "smooth" })
               }
-              className="rounded-full border border-border bg-surface/50 px-6 py-3 text-sm text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
+              className="rounded-full border border-border bg-surface/50 px-6 py-3 text-sm text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
             >
               Explore the Technology
             </button>
@@ -112,7 +156,7 @@ export function Hero() {
           style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
           className="relative"
         >
-          <WorkflowBoard phase={phase} statusOf={statusOf} />
+          <WorkflowBoard phase={phase} statusOf={statusOf} workflow={workflow} />
         </motion.div>
       </div>
     </section>
@@ -122,15 +166,17 @@ export function Hero() {
 function WorkflowBoard({
   phase,
   statusOf,
+  workflow,
 }: {
   phase: number;
   statusOf: (i: number) => string;
+  workflow: Workflow | null;
 }) {
   return (
-    <div className="clay relative rounded-[2rem] p-5 shadow-[var(--shadow-panel)] sm:p-7">
+    <div className="glass relative rounded-[2rem] p-5 shadow-[var(--shadow-panel)] sm:p-7">
       <div className="flex items-center justify-between border-b border-border pb-3">
         <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          pipeline / order-1024
+          pipeline / {workflow?.id.slice(0, 8) || "order-1024"}
         </span>
         <AnimatePresence mode="wait">
           <motion.span
@@ -168,11 +214,11 @@ function WorkflowBoard({
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 + i * 0.09, duration: 0.6 }}
-                className={`glass flex items-center justify-between rounded-xl px-4 py-3.5 transition-colors duration-500 ${
+                className={`clay flex items-center justify-between rounded-xl px-4 py-3.5 transition-all duration-500 hover:-translate-y-1 hover:shadow-lg ${
                   st === "fail"
-                    ? "animate-pulse-fail border-destructive/50 bg-destructive/20"
+                    ? "animate-pulse-fail border-destructive/60 bg-destructive/20 shadow-[0_0_20px_rgba(231,76,60,0.15)]"
                     : st === "ok"
-                      ? "border-success/25 bg-success/[0.1]"
+                      ? "border-success/40 bg-success/[0.1] shadow-[0_0_15px_rgba(46,204,113,0.1)]"
                       : "border-border/40 bg-surface-2/30"
                 }`}
               >
@@ -196,7 +242,7 @@ function WorkflowBoard({
         })}
       </div>
 
-      <div className="mt-5 min-h-[92px] rounded-xl border border-border bg-background/50 p-4">
+      <div className="mt-5 min-h-[92px] rounded-xl glass border border-primary/40 p-4 shadow-[0_0_20px_rgba(67,61,139,0.15)]">
         <AnimatePresence mode="wait">
           {phase <= 1 && (
             <motion.div key="a" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
